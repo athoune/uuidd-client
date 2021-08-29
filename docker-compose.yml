@@ -1,0 +1,15 @@
+---
+
+services:
+  server:
+    image: uuidd
+    volumes:
+      - ./run:/run
+
+  client:
+    image: uuid
+    volumes:
+      - ./run:/run
+    command: uuid
+    depends_on:
+     - server

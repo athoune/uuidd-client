@@ -1,0 +1,8 @@
+FROM debian:11
+
+RUN apt update \
+    && apt install -y \
+        uuid-runtime \
+    && rm -rf /var/lib/apt/lists/*
+
+CMD ["/usr/sbin/uuidd", "--no-pid", "--no-fork", "--socket", "/run/uuidd/request"]
