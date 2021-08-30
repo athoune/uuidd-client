@@ -53,13 +53,12 @@ func (c *Client) BulkTimeUUID(n int32, cb func(uuid.UUID) error) error {
 	if n < 0 {
 		return fmt.Errorf("positive value only %d", n)
 	}
-	var i int32
-	for i = 0; i < n; i++ {
+	for n > 0 {
 		conn, err := c.dial()
 		if err != nil {
 			return err
 		}
-		b, _, err := BulkTimeUUID(conn, n-i)
+		b, _, err := BulkTimeUUID(conn, n)
 		if err != nil {
 			return err
 		}
@@ -67,6 +66,7 @@ func (c *Client) BulkTimeUUID(n int32, cb func(uuid.UUID) error) error {
 		if err != nil {
 			return err
 		}
+		n--
 	}
 	return nil
 }
