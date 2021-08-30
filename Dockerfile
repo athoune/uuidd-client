@@ -1,9 +1,10 @@
 FROM golang as src
 
-COPY src /usr/src
+COPY ./uuidd/ /usr/src/uuidd/
+COPY main.go go.* /usr/src/
 WORKDIR /usr/src
 
-RUN go build -o /usr/local/bin/uuid .
+RUN ls -l && go build -o /usr/local/bin/uuid .
 
 FROM debian:11
 

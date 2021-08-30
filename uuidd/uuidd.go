@@ -5,9 +5,11 @@ Spec are here : https://github.com/karelzak/util-linux/blob/master/misc-utils/uu
 */
 
 import (
+	"fmt"
 	"io"
 	"net"
-	"sync"
+
+	"encoding/binary"
 
 	"github.com/google/uuid"
 )
@@ -25,28 +27,15 @@ const (
 func New(path string) *Client {
 	return &Client{
 		path: path,
-		lock: &sync.Mutex{},
 	}
 }
 
 type Client struct {
 	path string
-	lock *sync.Mutex
-	conn net.Conn
 }
 
 func (c *Client) dial() (net.Conn, error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if c.conn != nil {
-		return c.conn, nil
-	}
-	var err error
-	c.conn, err = net.Dial("unix", c.path)
-	if err != nil {
-		return nil, err
-	}
-	return c.conn, nil
+	return net.Dial("unix", c.path)
 }
 
 func (c *Client) TimeUUID() (uuid.UUID, error) {
@@ -55,6 +44,31 @@ func (c *Client) TimeUUID() (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 	return TimeUUID(conn)
+}
+
+func (c *Client) BulkTimeUUID(n int32, cb func(uuid.UUID) error) error {
+	if n == 0 {
+		return nil
+	}
+	if n < 0 {
+		return fmt.Errorf("positive value only %d", n)
+	}
+	var i int32
+	for i = 0; i < n; i++ {
+		conn, err := c.dial()
+		if err != nil {
+			return err
+		}
+		b, _, err := BulkTimeUUID(conn, n-i)
+		if err != nil {
+			return err
+		}
+		err = cb(b)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func TimeUUID(conn io.ReadWriter) (uuid.UUID, error) {
@@ -74,4 +88,36 @@ func TimeUUID(conn io.ReadWriter) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 	return uuid.FromBytes(u)
+}
+
+func BulkTimeUUID(conn io.ReadWriter, n int32) (uuid.UUID, int32, error) {
+	_, err := conn.Write([]byte{UUIDD_OP_BULK_TIME_UUID})
+	if err != nil {
+		return uuid.Nil, 0, err
+	}
+	err = binary.Write(conn, binary.LittleEndian, n)
+	if err != nil {
+		return uuid.Nil, 0, err
+	}
+	var len int32
+
+	err = binary.Read(conn, binary.LittleEndian, &len)
+	if err != nil {
+		return uuid.Nil, 0, err
+	}
+	bulk := make([]byte, 16)
+	_, err = io.ReadFull(conn, bulk)
+	if err != nil {
+		return uuid.Nil, 0, err
+	}
+	b, err := uuid.FromBytes(bulk)
+	if err != nil {
+		return uuid.Nil, 0, err
+	}
+
+	err = binary.Read(conn, binary.LittleEndian, &len)
+	if err != nil {
+		return uuid.Nil, 0, err
+	}
+	return b, len, nil
 }
