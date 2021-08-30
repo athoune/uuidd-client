@@ -47,9 +47,6 @@ func (c *Client) TimeUUID() (uuid.UUID, error) {
 }
 
 func (c *Client) BulkTimeUUID(n int32, cb func(uuid.UUID) error) error {
-	if n == 0 {
-		return nil
-	}
 	if n < 0 {
 		return fmt.Errorf("positive value only %d", n)
 	}
